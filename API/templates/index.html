@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO Image Prediction</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 80%;
+            text-align: center;
+        }
+
+        .image-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .image-row img {
+            width: 45%;
+            margin: 10px;
+            border: 1px solid #ccc;
+        }
+
+        button, input[type="submit"], input[type="reset"] {
+            padding: 10px 15px;
+            border: none;
+            background-color: #555;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover, input[type="submit"]:hover, input[type="reset"]:hover {
+            background-color: #777;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Upload and Predict</h2>
+        <form id="uploadForm" action="/upload_and_predict" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" id="fileInput">
+            <input type="reset" value="Reset">
+            <input type="submit" value="Upload and Predict">
+        </form>
+
+        <h2>Images</h2>
+        <div class="image-row">
+            <div>
+                <h3>Input Image</h3>
+                <img id="inputImage" src="/path_to_input_image" alt="Input Image">
+            </div>
+            <div>
+                <h3>Predicted Image</h3>
+                <img id="latestImage" src="/latest_predicted_image" alt="Latest Predicted Image">
+            </div>
+        </div>
+
+        <h2>Predicted Stats</h2>
+        <div id="statsView"></div>
+
+        <script>
+            $("#uploadForm").submit(function (e) {
+                e.preventDefault();
+                var formData = new FormData(this);
+                $.post({
+                    url: "/upload_and_predict",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (response) {
+                        alert(response.message);
+                        updateLatestImageAndStats();
+                    },
+                    error: function (xhr) {
+                        alert("Error: " + xhr.responseJSON.error);
+                    }
+                });
+            });
+    
+            function updateLatestImageAndStats() {
+                const timestamp = new Date().getTime();
+    
+                // Update input image
+                document.getElementById("inputImage").src = "/path_to_input_image?ts=" + timestamp;
+    
+                // Update predicted image
+                document.getElementById("latestImage").src = "/latest_predicted_image?ts=" + timestamp;
+    
+                // Update stats
+                $.get("/download_stats")
+                .done(function (data) {
+                    let names = {
+                        0: "b_fully_ripened",
+                        1: "b_green",
+                        2: "b_half_ripened",
+                        3: "l_fully_ripened",
+                        4: "l_green",
+                        5: "l_half_ripened"
+                    };
+                    let statsText = "";
+                    for (const cls in data) {
+                        const stat = data[cls];
+                        statsText += `Class: ${names[parseInt(cls)]}, Count: ${stat['count']}, Average Confidence: ${(100*stat['avg_confidence']).toFixed(2)}%<br>`;
+                    }
+                    $("#statsView").html(statsText);
+                })
+                .fail(function (xhr) {
+                    alert("Error: " + xhr.responseJSON.error);
+                });
+            }
+    
+            // Call the update function every 10 seconds
+            setInterval(updateLatestImageAndStats, 10000);
+        </script>
+    </div>
+</body>
+
+</html>
